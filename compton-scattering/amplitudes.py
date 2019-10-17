@@ -2,25 +2,30 @@ import numpy as np
 from numpy import pi
 
 
-def breit_amplitudes(params, omega, z, A=None):
+def breit_amplitudes(params, omega, z, A=None, dA=None):
     R"""The low-energy expansion of the non-Born parts of the Breit-frame amplitudes in terms of the polarisabilities.
 
     This also works for the cm frame, apparently. See Eq. (B.2) from Griesshammer 2018.
 
     Parameters
     ----------
-    params : ndarray
+    params : ndarray, shape = (p,)
         The polarizabilities [a_E1, b_M1, g_E1E1, g_M1M1, g_E1M2, g_M1E2]
-    omega : ndarray
+    omega : ndarray, shape = (n_omega,)
         The frequency in the appropriate frame
-    z :
+    z : ndarray, shape = (n_z,)
         cos(theta) in the appropriate frame
-    A : ndarray
+    A : ndarray, shape = (6, n_omega, n_z)
         The amplitude matrix in which to store the output. Creates a new array if `None` is given.
+    dA : ndarray, shape = (p, 6, n_omega, n_z)
+        The array in which to store the gradient of the amplitude wrt the polarizabilities.
 
     Returns
     -------
-
+    A : ndarray, shape = (6, n_omega, n_z)
+        The amplitudes
+    dA : ndarray, shape = (p, 6, n_omega, n_z)
+        The gradient of the amplitudes wrt the polarizabilities. Only returned if dA is not None.
     """
     aE1, bM1, gE1E1, gM1M1, gE1M2, gM1E2 = params
     if A is None:
@@ -33,6 +38,29 @@ def breit_amplitudes(params, omega, z, A=None):
     A[3] = + (gM1E2 - gM1M1) * omega ** 3
     A[4] = + gM1M1 * omega ** 3
     A[5] = + gE1M2 * omega ** 3
-
     A *= 4 * pi
+
+    if dA is not None:
+        dA[...] = 0.  # Reset all values
+        # dA / daE1
+        dA[0, 0] = omega ** 2
+        # dA / dbM1
+        dA[1, 0] = z * omega ** 2
+        dA[1, 1] = - omega ** 2
+        # dA / dgE1E1
+        dA[2, 2] = - omega ** 3
+        # dA / dgM1M1
+        dA[3, 2] = - z * omega ** 3
+        dA[3, 3] = - omega ** 3
+        dA[3, 4] = omega ** 3
+        # dA / dgE1M2
+        dA[4, 2] = - omega ** 3
+        dA[4, 5] = omega ** 3
+        # dA / dgM1E2
+        dA[5, 2] = - z * omega ** 3
+        dA[5, 3] = omega ** 3
+
+        dA *= 4 * pi
+        return A, dA
+
     return A
