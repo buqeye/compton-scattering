@@ -32,33 +32,33 @@ def breit_amplitudes(params, omega, z, A=None, dA=None):
         A = np.empty((6, len(omega), len(z)))
     omega = omega[:, None]
 
-    A[0] = + (aE1 + z * bM1) * omega ** 2
-    A[1] = - bM1 * omega ** 2
-    A[2] = - (gE1E1 + gE1M2 + z * (gM1M1 + gM1E2)) * omega ** 3
-    A[3] = + (gM1E2 - gM1M1) * omega ** 3
-    A[4] = + gM1M1 * omega ** 3
-    A[5] = + gE1M2 * omega ** 3
+    A[0] = + omega ** 2 * (aE1 + z * bM1)
+    A[1] = - omega ** 2 * bM1
+    A[2] = - omega ** 3 * (gE1E1 + gE1M2 + z * (gM1M1 + gM1E2))
+    A[3] = + omega ** 3 * (gM1E2 - gM1M1)
+    A[4] = + omega ** 3 * gM1M1
+    A[5] = + omega ** 3 * gE1M2
     A *= 4 * pi
 
     if dA is not None:
         dA[...] = 0.  # Reset all values
         # dA / daE1
-        dA[0, 0] = omega ** 2
+        dA[0, 0] = + omega ** 2
         # dA / dbM1
-        dA[1, 0] = z * omega ** 2
+        dA[1, 0] = + omega ** 2 * z
         dA[1, 1] = - omega ** 2
         # dA / dgE1E1
         dA[2, 2] = - omega ** 3
         # dA / dgM1M1
-        dA[3, 2] = - z * omega ** 3
+        dA[3, 2] = - omega ** 3 * z
         dA[3, 3] = - omega ** 3
-        dA[3, 4] = omega ** 3
+        dA[3, 4] = + omega ** 3
         # dA / dgE1M2
         dA[4, 2] = - omega ** 3
-        dA[4, 5] = omega ** 3
+        dA[4, 5] = + omega ** 3
         # dA / dgM1E2
-        dA[5, 2] = - z * omega ** 3
-        dA[5, 3] = omega ** 3
+        dA[5, 2] = - omega ** 3 * z
+        dA[5, 3] = + omega ** 3
 
         dA *= 4 * pi
         return A, dA
