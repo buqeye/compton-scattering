@@ -1,4 +1,6 @@
 import numpy as np
+from numpy import cos, deg2rad
+from .constants import alpha_fine, hbarc, fm2_to_nb, mass_proton
 
 
 def omega_cm_from_lab(omega_lab, mass):
@@ -48,3 +50,15 @@ def beta_boost(omega_lab, mass):
 def gamma_boost(omega_lab, mass):
     beta = beta_boost(omega_lab, mass)
     return 1. / np.sqrt(1. - beta ** 2)
+
+
+def dsg_proton_low_energy(cos0):
+    """The low-energy limit of the proton's differential cross section
+
+    """
+    return (alpha_fine * hbarc / mass_proton)**2 * fm2_to_nb * \
+        (1 + cos0 ** 2) / 2
+
+
+def sigma3_low_energy(cos0):
+    return (cos0 ** 2 - 1) / (cos0 ** 2 + 1)
