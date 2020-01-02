@@ -218,16 +218,89 @@ def create_linearized_matrices(x0, An, bn, cn, Ad, bd, cd, flat=True):
     return f0 - x0 @ grad_f0, grad_f0.T
 
 
-def shannon_expected_utility(X, cov_data, prec_p):
-    p = prec_p.shape[-1]
+def shannon_expected_utility(X, cov_data, prec_p, only_log=False):
+    R""""""
+    # p = prec_p.shape[-1]
     # print(prec_p.shape, X.shape, cov_data.shape)
-    return 0.5 * (- p * log(2 * pi) - p + slogdet(prec_p + X.T @ solve(cov_data, X))[1])
+    _, log_det = slogdet(prec_p + X.T @ solve(cov_data, X))  # The negative of log |V|
+    if only_log:
+        return 0.5 * log_det
+    _, log_det_prec = slogdet(prec_p)  # The negative of log |V_0|
+    return 0.5 * (log_det - log_det_prec)
+    # return 0.5 * (- p * log(2 * pi) - p + log_det)
+
+
+def create_observable_set(df, cov_exp, p0_proton=None, cov_p_proton=None, p0_neutron=None,
+                          cov_p_neutron=None, scale_dsg=True, p_transform=None):
+    from compton import proton_pol_vec_mean, neutron_pol_vec_mean, proton_pol_vec_std, neutron_pol_vec_std
+    proton_pol_cov = np.diag(proton_pol_vec_std)
+    neutron_pol_cov = np.diag(neutron_pol_vec_std)
+
+    groups = df.groupby(['observable', 'nucleon', 'order'])
+    compton_obs = {}
+    lin_vec = ['B1', 'B2', 'B3', 'B4', 'B5', 'B6']
+    quad_vec = [col for col in df.columns if col[0] == 'C']
+    for (obs, nucleon, order), index in groups.groups.items():
+        df_i = df.loc[index]
+        df_n = df_i[df_i['is_numerator'] == 1]
+        df_d = df_i[df_i['is_numerator'] == 0]
+
+        cov_p = None
+        p0 = None
+        if nucleon == 'proton':
+            cov_p = cov_p_proton
+            if cov_p_proton is None:
+                cov_p = proton_pol_cov
+            p0 = p0_proton
+            if p0_proton is None:
+                p0 = proton_pol_vec_mean
+        elif nucleon == 'neutron':
+            cov_p = cov_p_neutron
+            if cov_p_neutron is None:
+                cov_p = neutron_pol_cov
+            p0 = p0_neutron
+            if p0_neutron is None:
+                p0 = neutron_pol_vec_mean
+
+        obs_kwargs = dict(
+            omega_lab=df_n['omegalab [MeV]'].values,
+            degrees_lab=df_n['thetalab [deg]'].values,
+            quad_n=df_n[quad_vec].values,
+            lin_n=df_n[lin_vec].values,
+            const_n=df_n['A'].values,
+            quad_d=df_d[quad_vec].values,
+            lin_d=df_d[lin_vec].values,
+            const_d=df_d['A'].values,
+            name=obs if obs != 'crosssection' else 'dsg',
+            order=order,
+            nucleon=nucleon,
+            cov_p=cov_p,
+            trans_mat=p_transform,
+        )
+        compton_obs[obs, nucleon, order, 'nonlinear'] = ComptonObservable(**obs_kwargs)
+
+        try:
+            cov_exp_i = cov_exp[obs, nucleon]
+        except (TypeError, IndexError):
+            if np.atleast_1d(cov_exp).ndim == 1:
+                cov_exp_i = cov_exp * np.eye(len(df_n))
+            else:
+                cov_exp_i = cov_exp.copy()
+
+        if obs == 'crosssection' and scale_dsg:
+            pred_i = compton_obs[obs, nucleon, order, 'nonlinear'](p0)
+            cov_exp_i *= pred_i[:, None] * pred_i
+        compton_obs[obs, nucleon, order, 'linear'] = ComptonObservable(**obs_kwargs, p0=p0, cov_data=cov_exp_i)
+    return compton_obs
 
 
 class ComptonObservable:
+    R"""
+
+    """
 
     def __init__(self, omega_lab, degrees_lab, quad_n, lin_n, const_n, quad_d, lin_d, const_d, order, name, nucleon,
-                 p0=None, cov_data=None, cov_p=None):
+                 p0=None, cov_data=None, cov_p=None, trans_mat=None):
         self.omega_lab = omega_lab
         self.degrees_lab = degrees_lab
         self.order = order
@@ -256,6 +329,8 @@ class ComptonObservable:
             const, lin = create_linearized_matrices(p0, quad_n, lin_n, const_n, quad_d, lin_d, const_d, flat=True)
             self.const_approx = const
             self.lin_approx = lin
+            if trans_mat is not None:
+                self.lin_approx = lin @ np.linalg.inv(trans_mat)
             self.pred = self.prediction_linear
         else:
             self.const_approx = None
@@ -275,10 +350,28 @@ class ComptonObservable:
     def prediction_linear(self, p):
         return self.lin_approx @ p + self.const_approx
 
-    def utility_linear(self, idx):
+    def utility_linear(self, idx, p_idx=None, only_log=False):
+        R"""Computes the expected shannon utility under the linear model assumption
+
+        Parameters
+        ----------
+        idx : int or array
+            The data set index used to denote the design of the experiment
+        p_idx : int or array, optional
+            The subset of theory parameters used in the computation of the expected utility. Defaults to `None`,
+            which uses all theory parameters in the utility
+
+        Returns
+        -------
+        expected_utility : float
+        """
         X = self.lin_approx[idx]
         cov = self.cov_data[idx][:, idx]
-        return shannon_expected_utility(X, cov, self.prec_p)
+        p_precision = self.prec_p
+        if p_idx is not None:
+            X = X[:, p_idx]
+            p_precision = p_precision[p_idx][:, p_idx]
+        return shannon_expected_utility(X, cov, p_precision, only_log=only_log)
 
     def __repr__(self):
         name = f'{self.name}({self.order}, {self.nucleon})'
