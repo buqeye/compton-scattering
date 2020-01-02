@@ -26,8 +26,16 @@ from scipy.special import expit
 from compton import expansion_parameter, expansion_parameter_transfer_cm, order_transition, coefficients
 from compton import mass_proton, mass_neutron
 
+from os import path
+
+from compton import create_observable_set
+
 
 df = pd.read_csv('../data/compton_observables.csv', index_col=False)
+
+obs_file = path.abspath('../data/polarisabilities-coefficient-table-for-all-observables_20191111_jam.csv')
+df_ratio = pd.read_csv(obs_file, dtype={'observable': str})
+compton_obs = create_observable_set(df=df_ratio, cov_exp=0.)
 
 # obs vals: crosssection, 1Xp, 1X, 1Zp, 1Z, 2Xp, 2X, 2Zp, 2Z, 3, 3Yp, 3Y, Y
 obs_vals = [
@@ -62,6 +70,8 @@ for obs, system in product(obs_vals, systems):
     # coeffs_grid = coeffs.reshape(len(omega), len(degrees), -1)
 
     df_obs = df[(df['observable'] == obs) & (df['nucleon'] == system)]
+    # df_obs = df[(df['is_numerator'] is True) & (df['order'] == 4)]
+
     # df_obs = df_rescaled[(df_rescaled['observable'] == obs) & (df_rescaled['nucleon'] == system)]
     X = df_obs[['omegalab [MeV]', 'thetalab [deg]']].values
     omega = np.unique(X[:, 0])
@@ -75,6 +85,13 @@ for obs, system in product(obs_vals, systems):
     ord_vals = np.array([order_transition(order, order_map[order], X[:, 0]) for order in orders]).T
     # ord_vals = orders
     y = df_obs[['y0', 'y2', 'y3', 'y4']].values
+
+    # Replace with different LEC values
+    from compton import proton_pol_vec_mean, neutron_pol_vec_mean
+    p0 = proton_pol_vec_mean if system == 'proton' else neutron_pol_vec_mean
+    y[:, 2] = compton_obs[obs, system, 3, 'nonlinear'].prediction_ratio(p0)
+    y[:, 3] = compton_obs[obs, system, 4, 'nonlinear'].prediction_ratio(p0)
+
     y_grid = y.reshape(len(omega), len(degrees), -1)
     ref = 1.
     if obs == 'crosssection':
