@@ -218,15 +218,20 @@ def create_linearized_matrices(x0, An, bn, cn, Ad, bd, cd, flat=True):
     return f0 - x0 @ grad_f0, grad_f0.T
 
 
-def shannon_expected_utility(X, cov_data, prec_p, only_log=False):
-    R""""""
-    # p = prec_p.shape[-1]
-    # print(prec_p.shape, X.shape, cov_data.shape)
+def shannon_expected_utility(X, cov_data, prec_p):
+    R"""Computes the expected utility using the Shannon information, or the KL divergence
+
+    X : np.ndarray, shape = (n_data, n_features)
+        The feature matrix
+    cov_data : np.ndarray, shape = (n_data, n_data)
+        The covariance matrix for the data
+    prec_p : np.ndarray, shape = (n_features, n_features)
+        The prior precision on the parameters
+    """
     _, log_det = slogdet(prec_p + X.T @ solve(cov_data, X))  # The negative of log |V|
-    if only_log:
-        return 0.5 * log_det
     _, log_det_prec = slogdet(prec_p)  # The negative of log |V_0|
     return 0.5 * (log_det - log_det_prec)
+    # p = prec_p.shape[0]
     # return 0.5 * (- p * log(2 * pi) - p + log_det)
 
 
@@ -241,6 +246,9 @@ def create_observable_set(df, cov_exp, p0_proton=None, cov_p_proton=None, p0_neu
     lin_vec = ['B1', 'B2', 'B3', 'B4', 'B5', 'B6']
     quad_vec = [col for col in df.columns if col[0] == 'C']
     for (obs, nucleon, order), index in groups.groups.items():
+        if obs == 'crosssection':
+            obs = 'dsg'
+
         df_i = df.loc[index]
         df_n = df_i[df_i['is_numerator'] == 1]
         df_d = df_i[df_i['is_numerator'] == 0]
@@ -271,7 +279,8 @@ def create_observable_set(df, cov_exp, p0_proton=None, cov_p_proton=None, p0_neu
             quad_d=df_d[quad_vec].values,
             lin_d=df_d[lin_vec].values,
             const_d=df_d['A'].values,
-            name=obs if obs != 'crosssection' else 'dsg',
+            # name=obs if obs != 'crosssection' else 'dsg',
+            name=obs,
             order=order,
             nucleon=nucleon,
             cov_p=cov_p,
@@ -287,7 +296,8 @@ def create_observable_set(df, cov_exp, p0_proton=None, cov_p_proton=None, p0_neu
             else:
                 cov_exp_i = cov_exp.copy()
 
-        if obs == 'crosssection' and scale_dsg:
+        # if obs == 'crosssection' and scale_dsg:
+        if obs == 'dsg' and scale_dsg:
             pred_i = compton_obs[obs, nucleon, order, 'nonlinear'](p0)
             cov_exp_i *= pred_i[:, None] * pred_i
         compton_obs[obs, nucleon, order, 'linear'] = ComptonObservable(**obs_kwargs, p0=p0, cov_data=cov_exp_i)
@@ -350,7 +360,7 @@ class ComptonObservable:
     def prediction_linear(self, p):
         return self.lin_approx @ p + self.const_approx
 
-    def utility_linear(self, idx, p_idx=None, only_log=False):
+    def utility_linear(self, idx, p_idx=None):
         R"""Computes the expected shannon utility under the linear model assumption
 
         Parameters
@@ -371,7 +381,7 @@ class ComptonObservable:
         if p_idx is not None:
             X = X[:, p_idx]
             p_precision = p_precision[p_idx][:, p_idx]
-        return shannon_expected_utility(X, cov, p_precision, only_log=only_log)
+        return shannon_expected_utility(X, cov, p_precision)
 
     def __repr__(self):
         name = f'{self.name}({self.order}, {self.nucleon})'
