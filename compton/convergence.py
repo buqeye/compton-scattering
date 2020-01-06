@@ -297,7 +297,7 @@ def create_observable_set(df, cov_exp, p0_proton=None, cov_p_proton=None, p0_neu
                 cov_exp_i = cov_exp.copy()
 
         # if obs == 'crosssection' and scale_dsg:
-        if obs == 'dsg' and scale_dsg:
+        if (obs == 'dsg' or obs == r'$\sigma$') and scale_dsg:
             pred_i = compton_obs[obs, nucleon, order, 'nonlinear'](p0)
             cov_exp_i *= pred_i[:, None] * pred_i
         compton_obs[obs, nucleon, order, 'linear'] = ComptonObservable(**obs_kwargs, p0=p0, cov_data=cov_exp_i)
