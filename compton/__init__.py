@@ -5,6 +5,7 @@ from .kinematics import omega_cm_from_lab, omega_outgoing_lab, theta_cm_from_lab
 from .constants import mass_proton, alpha_fine, hbarc, fm2_to_nb, proton_pol_vec_mean, neutron_pol_vec_mean, \
     proton_pol_vec_std, neutron_pol_vec_std, mass_pion, mass_neutron, \
     proton_pol_vec_trans_mean, proton_pol_vec_trans_std
-from .graphs import plot_subsets, plot_utilities_all_observables
+from .graphs import plot_subsets, plot_utilities_all_observables, plot_comparison_subsets_and_truncation, \
+    plot_comparison_subsets_for_observables
 from .utils import compute_all_1pt_utilities, compute_max_utilities, convert_max_utilities_to_dataframe, \
     convert_max_utilities_to_flat_dataframe
