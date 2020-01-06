@@ -58,16 +58,18 @@ def compute_max_utilities(obs_dict, subsets, omega, degrees, n_degrees=1):
     return max_util_dict
 
 
-def convert_max_utilities_to_dataframe(max_utilities):
+def convert_max_utilities_to_dataframe(max_utilities, observable_order=None):
     bests_df = pd.DataFrame.from_dict(max_utilities).T
     bests_df.index.names = 'nucleon', 'observable', 'subset'
     bests_df = bests_df.reset_index()
     bests_df['util'] = bests_df.astype({'util': 'float64'})['util']
     bests_df['shrinkage'] = np.exp(bests_df['util'])
+    if observable_order is not None:
+        bests_df['observable'] = pd.Categorical(bests_df['observable'], observable_order, ordered=True)
     return bests_df
 
 
-def convert_max_utilities_to_flat_dataframe(max_utilities):
+def convert_max_utilities_to_flat_dataframe(max_utilities, observable_order=None):
     idxs_flat = []
     omega_flat = []
     theta_flat = []
@@ -94,4 +96,6 @@ def convert_max_utilities_to_flat_dataframe(max_utilities):
     bests_df_flat = bests_df_flat.reset_index()
     bests_df_flat = bests_df_flat.drop('index', axis=1)
     bests_df_flat['shrinkage'] = np.exp(bests_df_flat['util'])
+    if observable_order is not None:
+        bests_df_flat['observable'] = pd.Categorical(bests_df_flat['observable'], observable_order, ordered=True)
     return bests_df_flat
