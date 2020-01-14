@@ -11,6 +11,15 @@ pol_vec_names = ['alpha', 'beta', 'gammaE1E1', 'gammaM1M1', 'gammaE1M2', 'gammaM
 
 omega_lab_cusp = 149.95069260447417  # MeV
 
+P_trans = array([
+    [1,  1,  0,  0,  0,  0],
+    [1, -1,  0,  0,  0,  0],
+    [0,  0, -1, -1, -1, -1],
+    [0,  0, -1,  1, -1,  1],
+    [0,  0,  1,  0, -1,  0],
+    [0,  0,  0,  1,  0, -1]
+])
+
 # From Griesshammer et al. 2018 Table 1
 proton_pol_vec_mean = array([10.65, 3.15, -1.1, 2.2, -0.4, 1.9])
 # proton_pol_vec_mean = array([11.55, 3.65, -3.9394769972873096, 1.3, -0.051868897981361184, 2.1885661242054266])
@@ -48,3 +57,6 @@ neutron_pol_vec_std = array([
     0.6,
     0.5,
 ])
+
+neutron_pol_vec_trans_mean = P_trans @ neutron_pol_vec_mean  # Get real values!!
+neutron_pol_vec_trans_std = proton_pol_vec_trans_std.copy()  # Get real values!!
