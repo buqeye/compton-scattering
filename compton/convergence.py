@@ -333,6 +333,7 @@ class ComptonObservable:
             self.prec_p = None
 
         self.n_data = len(self.quad_n)
+        self.trans_mat = trans_mat
 
         if p0 is not None:
             self.linearized = True
@@ -351,6 +352,8 @@ class ComptonObservable:
         return self.pred(p)
 
     def prediction_ratio(self, p):
+        if self.trans_mat is not None:
+            p = np.linalg.inv(self.trans_mat) @ p
         p_sq = p[:, None] * p
         p_quad = p_sq[np.triu_indices_from(p_sq)]
         num = self.quad_n @ p_quad + self.lin_n @ p + self.const_n
