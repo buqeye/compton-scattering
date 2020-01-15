@@ -8,6 +8,14 @@ alpha_fine = 0.00729735256
 hbarc = 197.326
 fm2_to_nb = 1e7  # I think
 pol_vec_names = ['alpha', 'beta', 'gammaE1E1', 'gammaM1M1', 'gammaE1M2', 'gammaM1E2']
+pol_vec_trans_tex_names = [
+    r'$\alpha+\beta$',
+    r'$\alpha-\beta$',
+    r'$\gamma_{0}$',
+    r'$\gamma_{\pi}$',
+    r'$\gamma_{E-}$',
+    r'$\gamma_{M-}$',
+]
 
 omega_lab_cusp = 149.95069260447417  # MeV
 
