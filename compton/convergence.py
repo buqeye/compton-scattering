@@ -235,8 +235,8 @@ def shannon_expected_utility(X, cov_data, prec_p):
     # return 0.5 * (- p * log(2 * pi) - p + log_det)
 
 
-def create_observable_set(df, cov_exp, p0_proton=None, cov_p_proton=None, p0_neutron=None,
-                          cov_p_neutron=None, scale_dsg=True, p_transform=None):
+def create_observable_set(df, cov_exp=0., p0_proton=None, cov_p_proton=None, p0_neutron=None,
+                          cov_p_neutron=None, scale_dsg=True, p_transform=None, expts_info=None):
     from compton import proton_pol_vec_mean, neutron_pol_vec_mean, proton_pol_vec_std, neutron_pol_vec_std
     proton_pol_cov = np.diag(proton_pol_vec_std)
     neutron_pol_cov = np.diag(neutron_pol_vec_std)
@@ -288,18 +288,24 @@ def create_observable_set(df, cov_exp, p0_proton=None, cov_p_proton=None, p0_neu
         )
         compton_obs[obs, nucleon, order, 'nonlinear'] = ComptonObservable(**obs_kwargs)
 
-        try:
-            cov_exp_i = cov_exp[obs, nucleon]
-        except (TypeError, IndexError):
-            if np.atleast_1d(cov_exp).ndim == 1:
-                cov_exp_i = cov_exp * np.eye(len(df_n))
-            else:
-                cov_exp_i = cov_exp.copy()
+        if expts_info is None:
+            try:
+                cov_exp_i = cov_exp[obs, nucleon]
+            except (TypeError, IndexError):
+                if np.atleast_1d(cov_exp).ndim == 1:
+                    cov_exp_i = cov_exp * np.eye(len(df_n))
+                else:
+                    cov_exp_i = cov_exp.copy()
 
-        # if obs == 'crosssection' and scale_dsg:
-        if (obs == 'dsg' or obs == r'$\sigma$') and scale_dsg:
-            pred_i = compton_obs[obs, nucleon, order, 'nonlinear'](p0)
-            cov_exp_i *= pred_i[:, None] * pred_i
+            # if obs == 'crosssection' and scale_dsg:
+            if (obs == 'dsg' or obs == r'$\sigma$') and scale_dsg:
+                pred_i = compton_obs[obs, nucleon, order, 'nonlinear'](p0)
+                cov_exp_i *= pred_i[:, None] * pred_i
+        else:
+            if nucleon == 'proton':
+                cov_exp_i = expts_info[obs].cov_proton
+            else:
+                cov_exp_i = expts_info[obs].cov_neutron
         compton_obs[obs, nucleon, order, 'linear'] = ComptonObservable(**obs_kwargs, p0=p0, cov_data=cov_exp_i)
     return compton_obs
 

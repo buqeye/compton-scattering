@@ -17,6 +17,28 @@ pol_vec_trans_tex_names = [
     r'$\gamma_{M-}$',
 ]
 
+dsg_label = r'$\sigma$'
+
+observables_name_map = {
+    'crosssection': dsg_label,
+    'dsg': dsg_label,
+    '1X': r'$\Sigma_{1x}$',
+    '1Z': r'$\Sigma_{1z}$',
+    '2X': r'$\Sigma_{2x}$',
+    '2Z': r'$\Sigma_{2z}$',
+    '3': r'$\Sigma_{3}$',
+    'Y': r'$\Sigma_{y}$',
+    '3Y': r'$\Sigma_{3y}$',
+    '3Yp': r"$\Sigma_{3y'}$",
+    '1Xp': r"$\Sigma_{1x'}$",
+    '1Zp': r"$\Sigma_{1z'}$",
+    '2Xp': r"$\Sigma_{2x'}$",
+    '2Zp': r"$\Sigma_{2z'}$",
+}
+
+observables_unique_raw = array(['dsg', '1X', '1Z', '2X', '2Z', '3', 'Y', '3Y', '3Yp', '1Xp', '1Zp', '2Xp', '2Zp'])
+observables_unique = array([observables_name_map[name] for name in observables_unique_raw])
+
 omega_lab_cusp = 149.95069260447417  # MeV
 
 P_trans = array([
