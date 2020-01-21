@@ -2,7 +2,7 @@ import numpy as np
 from itertools import combinations, product
 import pandas as pd
 from sklearn.gaussian_process.kernels import RBF
-from .constants import dsg_label, observables_unique, omega_lab_cusp
+from .constants import dsg_label, observables_unique, omega_lab_cusp, accuracy_levels
 
 
 def ref_scale(omega, omega_pi, degrees, height, width=50, degrees_width=np.inf):
@@ -60,26 +60,7 @@ def create_experiment_infos(X, level, dsg_pred_proton, dsg_pred_neutron, Q_sum_p
     -------
 
     """
-    accuracy_levels = {
-        "standard": dict(
-            dsg_percent_error_p=5,
-            spin_absolute_error_p=0.1,
-            dsg_percent_error_n=5,
-            spin_absolute_error_n=0.1,
-        ),
-        "doable": dict(
-            dsg_percent_error_p=4,
-            spin_absolute_error_p=0.06,
-            dsg_percent_error_n=4,
-            spin_absolute_error_n=0.06,
-        ),
-        "aspirational": dict(
-            dsg_percent_error_p=3,
-            spin_absolute_error_p=0.03,
-            dsg_percent_error_n=3,
-            spin_absolute_error_n=0.03,
-        )
-    }
+
     # level = "standard today"
     if kernel_kwargs is None:
         kernel_kwargs = {(obs, nucleon): dict() for obs in observables_unique for nucleon in ['neutron', 'proton']}
