@@ -90,3 +90,24 @@ neutron_pol_vec_std = array([
 
 neutron_pol_vec_trans_mean = P_trans @ neutron_pol_vec_mean  # Get real values!!
 neutron_pol_vec_trans_std = proton_pol_vec_trans_std.copy()  # Get real values!!
+
+accuracy_levels = {
+        "standard": dict(
+            dsg_percent_error_p=5,
+            spin_absolute_error_p=0.1,
+            dsg_percent_error_n=5,
+            spin_absolute_error_n=0.1,
+        ),
+        "doable": dict(
+            dsg_percent_error_p=4,
+            spin_absolute_error_p=0.06,
+            dsg_percent_error_n=4,
+            spin_absolute_error_n=0.06,
+        ),
+        "aspirational": dict(
+            dsg_percent_error_p=3,
+            spin_absolute_error_p=0.03,
+            dsg_percent_error_n=3,
+            spin_absolute_error_n=0.03,
+        )
+    }
