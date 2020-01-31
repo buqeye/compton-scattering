@@ -200,8 +200,9 @@ def convert_max_utilities_to_dataframe(max_utilities, observable_order=None, sub
     bests_df = bests_df.reset_index()
     # print(bests_df)
     n_pts = len(bests_df.loc[0, 'idxs'])
-    bests_df['n pts'] = n_pts
-    bests_df = bests_df.astype({'util': 'float64', 'n pts': 'int32'})
+    n_pts_label = r'$\#$ Points'
+    bests_df[n_pts_label] = n_pts
+    bests_df = bests_df.astype({'util': 'float64', n_pts_label: 'int32'})
     bests_df['Shrinkage'] = np.exp(bests_df['util'])
     if observable_order is not None:
         bests_df['Observable'] = pd.Categorical(bests_df['Observable'], observable_order, ordered=True)
@@ -221,6 +222,8 @@ def convert_max_utilities_to_flat_dataframe(max_utilities, observable_order=None
 
     n_pts = None
 
+    n_pts_label = r'$\#$ Points'
+
     for (nucleon, obs, subset), best in max_utilities.items():
         if n_pts is None:
             n_pts = len(list(best['idxs']))
@@ -235,9 +238,9 @@ def convert_max_utilities_to_flat_dataframe(max_utilities, observable_order=None
     bests_df_flat = pd.DataFrame({
         'idx': idxs_flat, 'omega': omega_flat, 'theta': theta_flat,
         'Nucleon': nucleon_flat, 'Observable': obs_flat, 'util': util_flat, 'Subset': subset_flat,
-        'n pts': n_pts
+        n_pts_label: n_pts
     })
-    bests_df_flat['idx'] = bests_df_flat.astype({'idx': 'int32', 'n pts': 'int32'})['idx']
+    bests_df_flat['idx'] = bests_df_flat.astype({'idx': 'int32', n_pts_label: 'int32'})['idx']
     bests_df_flat = bests_df_flat.sort_values(by=['idx'])
     bests_df_flat = bests_df_flat.reset_index()
     bests_df_flat = bests_df_flat.drop('index', axis=1)
