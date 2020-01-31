@@ -218,6 +218,19 @@ def create_linearized_matrices(x0, An, bn, cn, Ad, bd, cd, flat=True):
     return f0 - x0 @ grad_f0, grad_f0.T
 
 
+def posterior_precision_linear(X, cov_data, prec_p):
+    R"""Computes the posterior precision for parameters under a linear Gaussian model
+
+        X : np.ndarray, shape = (n_data, n_features)
+            The feature matrix
+        cov_data : np.ndarray, shape = (n_data, n_data)
+            The covariance matrix for the data
+        prec_p : np.ndarray, shape = (n_features, n_features)
+            The prior precision on the parameters
+        """
+    return prec_p + X.T @ solve(cov_data, X)
+
+
 def shannon_expected_utility(X, cov_data, prec_p):
     R"""Computes the expected utility using the Shannon information, or the KL divergence
 
