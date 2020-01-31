@@ -111,3 +111,27 @@ accuracy_levels = {
             spin_absolute_error_n=0.03,
         )
     }
+
+
+class PrecisionLevels:
+    standard = 'standard'
+    doable = 'doable'
+    aspirational = 'aspirational'
+
+
+class DesignLabels:
+
+    n_pts = r'$\#$ Points'
+    omega = 'omega'
+    theta = 'theta'
+    util = 'util'
+    subset = 'Subset'
+    shrinkage = 'Shrinkage'
+    observable = 'Observable'
+    nucleon = 'Nucleon'
+    index = 'idx'
+    indices = 'idxs'
+
+    neutron = 'Neutron'
+    proton = 'Proton'
+
