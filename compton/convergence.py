@@ -5,6 +5,7 @@ import pandas as pd
 from scipy.special import expit
 from .constants import mass_pion
 from .kinematics import momentum_transfer_cm, cos0_cm_from_lab, omega_cm_from_lab
+from .constants import omega_lab_cusp, dsg_label, DesignLabels
 from sklearn.gaussian_process.kernels import RBF
 
 
@@ -17,15 +18,40 @@ def expansion_parameter(X, breakdown):
     return np.squeeze((X[:, 0] + mass_pion) / breakdown)
 
 
-def expansion_parameter_transfer_cm(X, breakdown, mass):
+def expansion_parameter_phillips(breakdown):
+    return np.sqrt(mass_pion / breakdown)
+
+
+def expansion_parameter_transfer_cm(X, breakdown, mass, include_correction=True):
     X = np.atleast_2d(X)
     omega_lab, cos0_lab = X.T
     cos0_lab = np.cos(np.deg2rad(cos0_lab))
     omega_cm = omega_cm_from_lab(omega_lab, mass=mass)
     cos0_cm = cos0_cm_from_lab(omega_lab, mass, cos0_lab)
     q = momentum_transfer_cm(omega_cm, cos0_cm)
-    q = np.max([q, omega_cm], axis=0)
-    return np.squeeze((q + mass_pion) / breakdown)
+    num = omega_cm + mass_pion
+
+    if include_correction:
+        # height = 200
+        # omega_width = 50
+        height = 150
+        omega_width = 150
+        cos0_width = 1
+        lorentz = height / (
+                ((omega_lab - omega_lab_cusp) / omega_width) ** 2 + ((cos0_lab - 1) / cos0_width) ** 2 + 1
+        )
+        num += lorentz
+    from scipy.special import softmax, logsumexp
+    # num = softmax([q, omega_cm], axis=0)
+    # num = logsumexp([q, omega_cm], axis=0)
+    # num = (q + omega_cm) / 2.
+    return np.squeeze(num / breakdown)
+
+
+def compute_expansion_summation_matrix(Q, first_omitted_order):
+    Q_mat = Q[:, None] * Q
+    Q_to_omitted = Q ** first_omitted_order
+    return Q_to_omitted[:, None] * Q_to_omitted / (1 - Q_mat)
 
 
 def coefficients(y, ratio, ref=1, orders=None):
@@ -268,20 +294,22 @@ def create_observable_set(df, cov_exp=0., p0_proton=None, cov_p_proton=None, p0_
 
         cov_p = None
         p0 = None
-        if nucleon == 'proton':
+        if nucleon == DesignLabels.proton:
             cov_p = cov_p_proton
             if cov_p_proton is None:
                 cov_p = proton_pol_cov
             p0 = p0_proton
             if p0_proton is None:
                 p0 = proton_pol_vec_mean
-        elif nucleon == 'neutron':
+        elif nucleon == DesignLabels.neutron:
             cov_p = cov_p_neutron
             if cov_p_neutron is None:
                 cov_p = neutron_pol_cov
             p0 = p0_neutron
             if p0_neutron is None:
                 p0 = neutron_pol_vec_mean
+        else:
+            raise ValueError('nucleon must be Proton or Neutron')
 
         obs_kwargs = dict(
             omega_lab=df_n['omegalab [MeV]'].values,
@@ -311,14 +339,16 @@ def create_observable_set(df, cov_exp=0., p0_proton=None, cov_p_proton=None, p0_
                     cov_exp_i = cov_exp.copy()
 
             # if obs == 'crosssection' and scale_dsg:
-            if (obs == 'dsg' or obs == r'$\sigma$') and scale_dsg:
+            if (obs == 'dsg' or obs == dsg_label) and scale_dsg:
                 pred_i = compton_obs[obs, nucleon, order, 'nonlinear'](p0)
                 cov_exp_i *= pred_i[:, None] * pred_i
         else:
-            if nucleon == 'proton':
+            if nucleon == DesignLabels.proton:
                 cov_exp_i = expts_info[obs].cov_proton
-            else:
+            elif nucleon == DesignLabels.neutron:
                 cov_exp_i = expts_info[obs].cov_neutron
+            else:
+                raise ValueError('nucleon must be Proton or Neutron')
         compton_obs[obs, nucleon, order, 'linear'] = ComptonObservable(**obs_kwargs, p0=p0, cov_data=cov_exp_i)
     return compton_obs
 
@@ -353,6 +383,11 @@ class ComptonObservable:
 
         self.n_data = len(self.quad_n)
         self.trans_mat = trans_mat
+
+        if (cov_p is not None) and not np.allclose(cov_p, cov_p.T):
+            print(f'Warning: Parameter covariance is not symmetric. name={name}, nucleon={nucleon}')
+        if (cov_data is not None) and not np.allclose(cov_data, cov_data.T):
+            print(f'Warning: Data covariance is not symmetric. name={name}, nucleon={nucleon}')
 
         if p0 is not None:
             self.linearized = True
@@ -404,6 +439,19 @@ class ComptonObservable:
             X = X[:, p_idx]
             p_precision = p_precision[p_idx][:, p_idx]
         return shannon_expected_utility(X, cov, p_precision)
+
+    def correlation_matrix(self, idx, p_idx=None):
+        X = self.lin_approx[idx]
+        cov = self.cov_data[idx][:, idx]
+        p_precision = self.prec_p
+        if p_idx is not None:
+            X = X[:, p_idx]
+            p_precision = p_precision[p_idx][:, p_idx]
+        print(np.count_nonzero(cov - cov.T))
+        post_cov = np.linalg.inv(posterior_precision_linear(X, cov, p_precision))
+        post_stds = np.sqrt(np.diag(post_cov))
+        print(post_cov)
+        return post_stds[:, None]**(-1) * post_cov * post_stds**(-1)
 
     def __repr__(self):
         name = f'{self.name}({self.order}, {self.nucleon})'
