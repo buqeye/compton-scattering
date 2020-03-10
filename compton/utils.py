@@ -2,7 +2,7 @@ import numpy as np
 from itertools import combinations, product
 import pandas as pd
 from sklearn.gaussian_process.kernels import RBF
-from .constants import dsg_label, observables_unique, omega_lab_cusp, accuracy_levels
+from .constants import dsg_label, observables_unique, omega_lab_cusp, accuracy_levels, nucleon_names, DesignLabels
 
 
 def ref_scale(omega, omega_pi, degrees, height, width=50, degrees_width=np.inf):
@@ -63,7 +63,7 @@ def create_experiment_infos(X, level, dsg_pred_proton, dsg_pred_neutron, Q_sum_p
 
     # level = "standard today"
     if kernel_kwargs is None:
-        kernel_kwargs = {(obs, nucleon): dict() for obs in observables_unique for nucleon in ['neutron', 'proton']}
+        kernel_kwargs = {(obs, nucleon): dict() for obs in observables_unique for nucleon in nucleon_names}
 
     dsg_percent_error_p = accuracy_levels[level]['dsg_percent_error_p'] * scale_exp
     spin_absolute_error_p = accuracy_levels[level]['spin_absolute_error_p'] * scale_exp
@@ -72,13 +72,13 @@ def create_experiment_infos(X, level, dsg_pred_proton, dsg_pred_neutron, Q_sum_p
 
     corr_identity = np.eye(X.shape[0])
 
-    def create_cov_th(X, std=1, ls_omega=1e-8, ls_degrees=1e-8, noise_std=0, degrees_zeros=None, height=1):
+    def create_cov_th(X, std=1, ls_omega=1e-8, ls_degrees=1e-8, noise_std=0, degrees_zeros=None, height=1, ref=1):
         corr = compton_kernel(X, std, ls_omega, ls_degrees, noise_std=noise_std, degrees_zeros=degrees_zeros)
 
         if height is not None:
-            ref = ref_scale(X[:, 0], omega_lab_cusp, X[:, 1], height)
+            ref = ref * ref_scale(X[:, 0], omega_lab_cusp, X[:, 1], height)
         else:
-            ref = 1.
+            ref = 1. * ref
         ref = np.atleast_1d(ref)
         cov = ref[:, None] * ref * corr
 
@@ -104,8 +104,9 @@ def create_experiment_infos(X, level, dsg_pred_proton, dsg_pred_neutron, Q_sum_p
 
     def create_spin_expt(name):
         if trunc:
-            cov_trunc_p = Q_sum_p * create_cov_th(X, **kernel_kwargs[name, 'proton'])
-            cov_trunc_n = Q_sum_n * create_cov_th(X, **kernel_kwargs[name, 'neutron'])
+            cov_trunc_p = Q_sum_p * create_cov_th(X, **kernel_kwargs[name, DesignLabels.proton])
+            cov_trunc_n = Q_sum_n * create_cov_th(X, **kernel_kwargs[name, DesignLabels.neutron])
+
         else:
             cov_trunc_p = 0.
             cov_trunc_n = 0.
@@ -117,10 +118,13 @@ def create_experiment_infos(X, level, dsg_pred_proton, dsg_pred_neutron, Q_sum_p
         )
 
     if trunc:
-        dsg_ref_p = dsg_pred_proton[:, None] * dsg_pred_proton
-        dsg_ref_n = dsg_pred_neutron[:, None] * dsg_pred_neutron
-        dsg_cov_trunc_p = dsg_ref_p * Q_sum_p * create_cov_th(X, **kernel_kwargs[dsg_label, 'proton'])
-        dsg_cov_trunc_n = dsg_ref_n * Q_sum_n * create_cov_th(X, **kernel_kwargs[dsg_label, 'neutron'])
+        # dsg_ref_p = dsg_pred_proton[:, None] * dsg_pred_proton
+        # dsg_ref_n = dsg_pred_neutron[:, None] * dsg_pred_neutron
+        # Taken into account via ref scale now.
+        dsg_ref_p = 1.
+        dsg_ref_n = 1.
+        dsg_cov_trunc_p = dsg_ref_p * Q_sum_p * create_cov_th(X, **kernel_kwargs[dsg_label, DesignLabels.proton])
+        dsg_cov_trunc_n = dsg_ref_n * Q_sum_n * create_cov_th(X, **kernel_kwargs[dsg_label, DesignLabels.neutron])
     else:
         dsg_cov_trunc_p = 0
         dsg_cov_trunc_n = 0
@@ -202,8 +206,13 @@ def convert_max_utilities_to_dataframe(max_utilities, observable_order=None, sub
     n_pts = len(bests_df.loc[0, 'idxs'])
     n_pts_label = r'$\#$ Points'
     bests_df[n_pts_label] = n_pts
-    bests_df = bests_df.astype({'util': 'float64', n_pts_label: 'int32'})
+    # bests_df = bests_df.astype({'util': 'float64', n_pts_label: 'int32'})
+    bests_df = bests_df.astype({'util': 'float64', n_pts_label: str})
+    one_pt_mask = bests_df[n_pts_label] == '1'
+    bests_df.loc[one_pt_mask, n_pts_label] += ' Points'
+    bests_df.loc[~one_pt_mask, n_pts_label] += ' Points'
     bests_df['Shrinkage'] = np.exp(bests_df['util'])
+    bests_df['FVR'] = 1 - 1. / bests_df['Shrinkage']
     if observable_order is not None:
         bests_df['Observable'] = pd.Categorical(bests_df['Observable'], observable_order, ordered=True)
     if subset_order is not None:
@@ -240,11 +249,16 @@ def convert_max_utilities_to_flat_dataframe(max_utilities, observable_order=None
         'Nucleon': nucleon_flat, 'Observable': obs_flat, 'util': util_flat, 'Subset': subset_flat,
         n_pts_label: n_pts
     })
-    bests_df_flat['idx'] = bests_df_flat.astype({'idx': 'int32', n_pts_label: 'int32'})['idx']
-    bests_df_flat = bests_df_flat.sort_values(by=['idx'])
+    bests_df_flat = bests_df_flat.astype({'idx': 'int32', n_pts_label: str})
+    # bests_df_flat['idx'] = bests_df_flat.astype({'idx': 'int32', n_pts_label: 'int32'})['idx']
+    one_pt_mask = bests_df_flat[n_pts_label] == '1'
+    bests_df_flat.loc[one_pt_mask, n_pts_label] += ' Points'
+    bests_df_flat.loc[~one_pt_mask, n_pts_label] += ' Points'
+    bests_df_flat = bests_df_flat.sort_values(by=['idx', n_pts_label])
     bests_df_flat = bests_df_flat.reset_index()
     bests_df_flat = bests_df_flat.drop('index', axis=1)
     bests_df_flat['Shrinkage'] = np.exp(bests_df_flat['util'])
+    bests_df_flat['FVR'] = 1 - 1. / bests_df_flat['Shrinkage']  # Fraction of uncertainty removed
     if observable_order is not None:
         bests_df_flat['Observable'] = pd.Categorical(bests_df_flat['Observable'], observable_order, ordered=True)
     if subset_order is not None:
