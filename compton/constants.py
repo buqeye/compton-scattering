@@ -4,6 +4,7 @@ from numpy import sqrt, array
 mass_proton = 938.272
 mass_neutron = 939.565
 mass_pion = 138
+mass_delta = 1232
 alpha_fine = 0.00729735256
 hbarc = 197.326
 fm2_to_nb = 1e7  # I think
@@ -17,7 +18,7 @@ pol_vec_trans_tex_names = [
     r'$\gamma_{M-}$',
 ]
 
-dsg_label = r'$\sigma$'
+dsg_label = r'$d\sigma$'
 
 observables_name_map = {
     'crosssection': dsg_label,
@@ -127,6 +128,7 @@ class DesignLabels:
     util = 'util'
     subset = 'Subset'
     shrinkage = 'Shrinkage'
+    fvr = 'FVR'
     observable = 'Observable'
     nucleon = 'Nucleon'
     index = 'idx'
@@ -135,3 +137,5 @@ class DesignLabels:
     neutron = 'Neutron'
     proton = 'Proton'
 
+
+nucleon_names = [DesignLabels.neutron, DesignLabels.proton]
