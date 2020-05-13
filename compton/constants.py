@@ -1,5 +1,8 @@
 from numpy import sqrt, array
 
+# The orders around pion mass mapped to orders around delta regime
+order_map = {0: 0, 2: 1, 3: -1, 4: 2}
+
 # Make sure these are right
 mass_proton = 938.272
 mass_neutron = 939.565
@@ -10,15 +13,15 @@ hbarc = 197.326
 fm2_to_nb = 1e7  # I think
 pol_vec_names = ['alpha', 'beta', 'gammaE1E1', 'gammaM1M1', 'gammaE1M2', 'gammaM1E2']
 pol_vec_trans_tex_names = [
-    r'$\alpha+\beta$',
-    r'$\alpha-\beta$',
+    r'$\alpha_{E1}+\beta_{M1}$',
+    r'$\alpha_{E1}-\beta_{M1}$',
     r'$\gamma_{0}$',
     r'$\gamma_{\pi}$',
     r'$\gamma_{E-}$',
     r'$\gamma_{M-}$',
 ]
 
-dsg_label = r'$d\sigma$'
+dsg_label = r'$\mathrm{d}\sigma$'
 
 observables_name_map = {
     'crosssection': dsg_label,
@@ -64,15 +67,34 @@ proton_pol_vec_std = array([
 ])
 
 # a+b, a-b, g_0, g_pi, g_e-, g_m-
-proton_pol_vec_trans_mean = array([13.8, 7.6, -1.0, 8.0, -1.1 - (-0.4), 2.2 - 1.9])
+
 # See table 1 of Griesshammer 2016
+# proton_pol_vec_trans_mean = array([13.8, 7.6, -1.0, 8.0, -1.1 - (-0.4), 2.2 - 1.9])
+# proton_pol_vec_trans_std = array([
+#     0.4,  # a+b
+#     0.9,  # a-b
+#     sqrt(0.1**2 + 0.1**2),  # g_0
+#     1.8,  # g_pi
+#     sqrt(1.9**2 + 0.6**2),  # g_e-
+#     sqrt(0.5**2 + 0.6**2 + 0.5**2)  # g_m-
+# ])
+
+# New values based on various experiments and table 1 of Griesshammer 2016
+proton_pol_vec_trans_mean = array([
+    +14.0,    # a+b, new Baldin Grynuik 2016
+    + 7.5,    # a-b, pCompton 2013
+    - 0.929,  # g_0, GDH Gryniuk 2016
+    + 5.5,    # g_pi, Griesshammer 2016 (Table 1)
+    - 0.7,    # g_e-, Griesshammer 2016 (Table 1)
+    + 0.3,    # g_m-, Griesshammer 2016 (Table 1)
+])
 proton_pol_vec_trans_std = array([
-    0.4,  # a+b
-    0.9,  # a-b
-    sqrt(0.1**2 + 0.1**2),  # g_0
-    1.8,  # g_pi
-    sqrt(1.9**2 + 0.6**2),  # g_e-
-    sqrt(0.5**2 + 0.6**2 + 0.5**2)  # g_m-
+    0.2,    # a+b, new Baldin Grynuik 2016
+    0.9,    # a-b, pCompton 2013
+    0.015,  # g_0, GDH Gryniuk 2016
+    1.9,    # g_pi, Griesshammer 2016 (Table 1)
+    2.0,    # g_e-, Griesshammer 2016 (Table 1)
+    0.9,    # g_m-, Griesshammer 2016 (Table 1)
 ])
 
 # neutron_pol_vec_mean = array([11.55, 3.65, -4.0, 1.3, -0.1, 2.4])
@@ -89,8 +111,26 @@ neutron_pol_vec_std = array([
     0.5,
 ])
 
-neutron_pol_vec_trans_mean = P_trans @ neutron_pol_vec_mean  # Get real values!!
-neutron_pol_vec_trans_std = proton_pol_vec_trans_std.copy()  # Get real values!!
+# neutron_pol_vec_trans_mean = P_trans @ neutron_pol_vec_mean  # Get real values!!
+# neutron_pol_vec_trans_std = proton_pol_vec_trans_std.copy()  # Get real values!!
+
+# New values based on various experiments and table 1 of Griesshammer 2016
+neutron_pol_vec_trans_mean = array([
+    +15.2,  # a+b, new Baldin LL 2000
+    + 7.9,  # a-b, dCompton 2014
+    + 0.4,  # g_0, Griesshammer 2016 (Table 1)
+    + 7.8,  # g_pi, Griesshammer 2016 (Table 1)
+    - 3.9,  # g_e-, Griesshammer 2016 (Table 1)
+    - 1.1,  # g_m-, Griesshammer 2016 (Table 1)
+])
+neutron_pol_vec_trans_std = array([
+    0.4,  # a+b, new Baldin LL 2000
+    3.0,  # a-b, dCompton 2014
+    2.2,  # g_0, Griesshammer 2016 (Table 1)
+    2.2,  # g_pi, Griesshammer 2016 (Table 1)
+    2.0,  # g_e-, Griesshammer 2016 (Table 1)
+    0.9,  # g_m-, Griesshammer 2016 (Table 1)
+])
 
 accuracy_levels = {
         "standard": dict(

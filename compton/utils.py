@@ -11,20 +11,79 @@ def ref_scale(omega, omega_pi, degrees, height, width=50, degrees_width=np.inf):
     return 1 / ((omega - omega_pi)**2/width**2 + degrees**2 / degrees_width**2 + 1/(height-1)) + 1
 
 
-def compton_kernel(X, std, ell_omega, ell_degrees, noise_std=1e-7, degrees_zeros=None):
-    kern_omega = RBF(ell_omega)
-    kern_degrees = RBF(ell_degrees)
+def compton_kernel(
+        X, std, ell_omega, ell_degrees, noise_std=1e-7, degrees_zeros=None, omega_zeros=None,
+        degrees_deriv_zeros=None, omega_deriv_zeros=None,
+):
 
-    deg = X[:, [1]]
-    K_omega = kern_omega(X[:, [0]])
-    K_degrees = kern_degrees(deg)
+    deg = t = X[:, [1]]
+    omega = w = X[:, [0]]
 
-    if degrees_zeros is not None:
-        degrees_zeros = np.atleast_1d(degrees_zeros)
-        if degrees_zeros.ndim == 1:
-            degrees_zeros = degrees_zeros[:, None]
-        temp = np.linalg.solve(kern_degrees(degrees_zeros), kern_degrees(degrees_zeros, deg))
-        K_degrees = K_degrees - kern_degrees(deg, degrees_zeros) @ temp
+    import gptools
+
+    kern_omega = gptools.SquaredExponentialKernel(
+        initial_params=[1, ell_omega], fixed_params=[True, True])
+    kern_theta = gptools.SquaredExponentialKernel(
+        initial_params=[1, ell_degrees], fixed_params=[True, True])
+    gp_omega = gptools.GaussianProcess(kern_omega)
+    gp_theta = gptools.GaussianProcess(kern_theta)
+
+    if omega_zeros is not None or omega_deriv_zeros is not None:
+        w_z = []
+        n_w = []
+
+        if omega_zeros is not None:
+            w_z.append(omega_zeros)
+            n_w.append(np.zeros(len(omega_zeros)))
+        if omega_deriv_zeros is not None:
+            w_z.append(omega_deriv_zeros)
+            n_w.append(np.ones(len(omega_deriv_zeros)))
+        w_z = np.concatenate(w_z)[:, None]
+        n_w = np.concatenate(n_w)
+
+        gp_omega.add_data(w_z, np.zeros(w_z.shape[0]), n=n_w)
+        _, K_omega = gp_omega.predict(w, np.zeros(w.shape[0]), return_cov=True)
+    else:
+        K_omega = gp_omega.compute_Kij(w, w, np.zeros(w.shape[0]), np.zeros(w.shape[0]))
+
+    if degrees_zeros is not None or degrees_deriv_zeros is not None:
+        t_z = []
+        n_t = []
+
+        if degrees_zeros is not None:
+            t_z.append(degrees_zeros)
+            n_t.append(np.zeros(len(degrees_zeros)))
+        if degrees_deriv_zeros is not None:
+            t_z.append(degrees_deriv_zeros)
+            n_t.append(np.ones(len(degrees_deriv_zeros)))
+        t_z = np.concatenate(t_z)[:, None]
+        n_t = np.concatenate(n_t)
+
+        gp_theta.add_data(t_z, np.zeros(t_z.shape[0]), n=n_t)
+        _, K_degrees = gp_theta.predict(t, np.zeros(t.shape[0]), return_cov=True)
+    else:
+        K_degrees = gp_theta.compute_Kij(t, t, np.zeros(t.shape[0]), np.zeros(t.shape[0]))
+
+    # kern_omega = RBF(ell_omega)
+    # kern_degrees = RBF(ell_degrees)
+
+    # K_omega = kern_omega(omega)
+    # K_degrees = kern_degrees(deg)
+    #
+    # # Create conditional kernels if observables are known to vanish at certain locations
+    # if omega_zeros is not None:
+    #     omega_zeros = np.atleast_1d(omega_zeros)
+    #     if omega_zeros.ndim == 1:
+    #         omega_zeros = omega_zeros[:, None]
+    #     temp_omega = np.linalg.solve(kern_omega(omega_zeros), kern_omega(omega_zeros, omega))
+    #     K_omega = K_omega - kern_omega(omega, omega_zeros) @ temp_omega
+    #
+    # if degrees_zeros is not None:
+    #     degrees_zeros = np.atleast_1d(degrees_zeros)
+    #     if degrees_zeros.ndim == 1:
+    #         degrees_zeros = degrees_zeros[:, None]
+    #     temp = np.linalg.solve(kern_degrees(degrees_zeros), kern_degrees(degrees_zeros, deg))
+    #     K_degrees = K_degrees - kern_degrees(deg, degrees_zeros) @ temp
 
     K = std ** 2 * K_omega * K_degrees
     K += noise_std ** 2 * np.eye(K.shape[0])
@@ -72,11 +131,21 @@ def create_experiment_infos(X, level, dsg_pred_proton, dsg_pred_neutron, Q_sum_p
 
     corr_identity = np.eye(X.shape[0])
 
-    def create_cov_th(X, std=1, ls_omega=1e-8, ls_degrees=1e-8, noise_std=0, degrees_zeros=None, height=1, ref=1):
-        corr = compton_kernel(X, std, ls_omega, ls_degrees, noise_std=noise_std, degrees_zeros=degrees_zeros)
+    def create_cov_th(
+            X, std=1, ls_omega=1e-8, ls_degrees=1e-8, noise_std=0, degrees_zeros=None, omega_zeros=None,
+            degrees_deriv_zeros=None, omega_deriv_zeros=None,
+            height=1, ref=1, width=50, degrees_width=np.inf,
+    ):
+        corr = compton_kernel(
+            X, std, ls_omega, ls_degrees, noise_std=noise_std, degrees_zeros=degrees_zeros, omega_zeros=omega_zeros,
+            degrees_deriv_zeros=degrees_deriv_zeros, omega_deriv_zeros=omega_deriv_zeros,
+        )
 
         if height is not None:
-            ref = ref * ref_scale(X[:, 0], omega_lab_cusp, X[:, 1], height)
+            ref = ref * ref_scale(
+                X[:, 0], omega_pi=omega_lab_cusp, degrees=X[:, 1], height=height, width=width,
+                degrees_width=degrees_width
+            )
         else:
             ref = 1. * ref
         ref = np.atleast_1d(ref)
@@ -207,10 +276,20 @@ def convert_max_utilities_to_dataframe(max_utilities, observable_order=None, sub
     n_pts_label = r'$\#$ Points'
     bests_df[n_pts_label] = n_pts
     # bests_df = bests_df.astype({'util': 'float64', n_pts_label: 'int32'})
-    bests_df = bests_df.astype({'util': 'float64', n_pts_label: str})
-    one_pt_mask = bests_df[n_pts_label] == '1'
-    bests_df.loc[one_pt_mask, n_pts_label] += ' Points'
-    bests_df.loc[~one_pt_mask, n_pts_label] += ' Points'
+    bests_df = bests_df.astype({'util': 'float64', n_pts_label: int})
+    n_pts_ints = np.sort(bests_df[n_pts_label].unique())
+    n_pts_strs = []
+    for n in n_pts_ints:
+        if n > 1:
+            n_pts_strs.append(str(n) + ' Points')
+        else:
+            n_pts_strs.append(str(n) + ' Point')
+    bests_df[n_pts_label] = bests_df[n_pts_label].replace(dict(zip(n_pts_ints, n_pts_strs)))
+    bests_df[n_pts_label] = pd.Categorical(bests_df[n_pts_label], n_pts_strs[::-1], ordered=True)
+
+    # one_pt_mask = bests_df[n_pts_label] == '1'
+    # bests_df.loc[one_pt_mask, n_pts_label] += ' Points'
+    # bests_df.loc[~one_pt_mask, n_pts_label] += ' Points'
     bests_df['Shrinkage'] = np.exp(bests_df['util'])
     bests_df['FVR'] = 1 - 1. / bests_df['Shrinkage']
     if observable_order is not None:
@@ -249,11 +328,21 @@ def convert_max_utilities_to_flat_dataframe(max_utilities, observable_order=None
         'Nucleon': nucleon_flat, 'Observable': obs_flat, 'util': util_flat, 'Subset': subset_flat,
         n_pts_label: n_pts
     })
-    bests_df_flat = bests_df_flat.astype({'idx': 'int32', n_pts_label: str})
+    bests_df_flat = bests_df_flat.astype({'idx': 'int32', n_pts_label: int})
     # bests_df_flat['idx'] = bests_df_flat.astype({'idx': 'int32', n_pts_label: 'int32'})['idx']
-    one_pt_mask = bests_df_flat[n_pts_label] == '1'
-    bests_df_flat.loc[one_pt_mask, n_pts_label] += ' Points'
-    bests_df_flat.loc[~one_pt_mask, n_pts_label] += ' Points'
+    n_pts_ints = bests_df_flat[n_pts_label].unique()
+    n_pts_strs = []
+    for n in n_pts_ints:
+        if n > 1:
+            n_pts_strs.append(str(n) + ' Points')
+        else:
+            n_pts_strs.append(str(n) + ' Point')
+    # one_pt_mask = bests_df_flat[n_pts_label] == '1'
+    # bests_df_flat.loc[one_pt_mask, n_pts_label] += ' Points'
+    # bests_df_flat.loc[~one_pt_mask, n_pts_label] += ' Points'
+    bests_df_flat[n_pts_label] = bests_df_flat[n_pts_label].replace(dict(zip(n_pts_ints, n_pts_strs)))
+    bests_df_flat[n_pts_label] = pd.Categorical(bests_df_flat[n_pts_label], n_pts_strs[::-1], ordered=True)
+
     bests_df_flat = bests_df_flat.sort_values(by=['idx', n_pts_label])
     bests_df_flat = bests_df_flat.reset_index()
     bests_df_flat = bests_df_flat.drop('index', axis=1)

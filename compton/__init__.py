@@ -1,4 +1,5 @@
-from .convergence import ComptonObservable, expansion_parameter, expansion_parameter_transfer_cm, order_transition, \
+from .convergence import ComptonObservable, expansion_parameter, expansion_parameter_momentum_transfer_cm, \
+    order_transition, expansion_parameter_cm, \
     coefficients, RBFJump, create_observable_set, posterior_precision_linear, shannon_expected_utility, \
     compute_expansion_summation_matrix, expansion_parameter_phillips
 from .kinematics import omega_cm_from_lab, omega_outgoing_lab, theta_cm_from_lab, cos0_cm_from_lab, \
