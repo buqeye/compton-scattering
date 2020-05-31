@@ -480,10 +480,10 @@ class ComptonObservable:
         if p_idx is not None:
             X = X[:, p_idx]
             p_precision = p_precision[p_idx][:, p_idx]
-        print(np.count_nonzero(cov - cov.T))
+        # print(np.count_nonzero(cov - cov.T))
         post_cov = np.linalg.inv(posterior_precision_linear(X, cov, p_precision))
         post_stds = np.sqrt(np.diag(post_cov))
-        print(post_cov)
+        # print(post_cov)
         return post_stds[:, None]**(-1) * post_cov * post_stds**(-1)
 
     def __repr__(self):
@@ -571,7 +571,7 @@ class ConvergenceAnalyzer:
         self.c_train = c[train][:, included]
 
         gp = gm.ConjugateGaussianProcess(**kwargs)
-        print(self.c_train.shape)
+        # print(self.c_train.shape)
         gp.fit(self.X_train, self.c_train)
         print('Fit kernel:', gp.kernel_)
         self.cbar = np.sqrt(gp.cbar_sq_mean_)
