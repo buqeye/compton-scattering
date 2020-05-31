@@ -10,8 +10,28 @@ from sklearn.gaussian_process.kernels import RBF
 import gsum as gm
 
 
-def order_transition(n, n_inf, omega):
+def order_transition_old(n, n_inf, omega):
     return n + (n_inf - n) * expit((omega-190)/20)
+
+
+def order_transition_lower_orders(n, omega):
+    omega1 = 180.
+    omega2 = 240.
+    omegam = (omega1 + omega2) / 2.
+    f = 1. / (1 + np.exp(4 * np.log(3) * (omega - omegam) / (omega1 - omega2)))
+    if n % 2 == 0:
+        return (1 - f / 2.) * n
+    elif n % 2 == 1:
+        return (1 - f / 2.) * n - 5 * f / 2.
+    raise ValueError('n must be an integer')
+
+
+def order_transition_truncation(n, omega, n_inf):
+    omega1 = 180.
+    omega2 = 240.
+    omegam = (omega1 + omega2) / 2.
+    f = 1. / (1 + np.exp(4 * np.log(3) * (omega - omegam) / (omega1 - omega2)))
+    return n - (n - n_inf) * f
 
 
 def expansion_parameter(X, breakdown):
@@ -525,7 +545,8 @@ class ConvergenceAnalyzer:
         if delta_transition:
             from compton.constants import order_map
             # order_map = {0: 0, 2: 1, 3: 2, 4: 3}
-            ord_vals = np.array([order_transition(order, order_map[order], X[:, 0]) for order in orders]).T
+            # ord_vals = np.array([order_transition(order, order_map[order], X[:, 0]) for order in orders]).T
+            ord_vals = np.array([order_transition_lower_orders(order, X[:, 0]) for order in orders]).T
         else:
             ord_vals = np.array([np.broadcast_to(order, X.shape[0]) for order in orders]).T
         self.ord_vals = ord_vals
