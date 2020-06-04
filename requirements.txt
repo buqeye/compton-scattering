@@ -3,3 +3,6 @@ numpy
 scikit-learn
 scipy
 seaborn
+pandas
+itertools
+mpl_toolkits
