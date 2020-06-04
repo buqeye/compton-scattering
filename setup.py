@@ -10,5 +10,7 @@ setup(
         'numpy',
         'scipy',
         'scikit-learn',
+        'gsum',
+        'matplotlib',
     ]
 )
